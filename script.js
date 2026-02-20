@@ -1,0 +1,215 @@
+// Theme Toggle
+const themeToggle = document.getElementById('themeToggle');
+const htmlElement = document.documentElement;
+const icon = themeToggle ? themeToggle.querySelector('i') : null;
+
+// Check local storage
+const savedTheme = localStorage.getItem('theme') || 'dark';
+htmlElement.setAttribute('data-theme', savedTheme);
+updateIcon(savedTheme);
+
+if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = htmlElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+        htmlElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateIcon(newTheme);
+    });
+}
+
+function updateIcon(theme) {
+    if (!icon) return;
+    if (theme === 'dark') {
+        icon.classList.remove('fa-sun');
+        icon.classList.add('fa-moon');
+    } else {
+        icon.classList.remove('fa-moon');
+        icon.classList.add('fa-sun');
+    }
+}
+
+// Sticky Navbar Effect
+const navbar = document.querySelector('.navbar');
+
+window.addEventListener('scroll', () => {
+    if (window.scrollY > 50) {
+        navbar.style.padding = '0';
+        navbar.style.backgroundColor = 'var(--bg-glass)';
+    } else {
+        navbar.style.padding = '10px 0';
+        navbar.style.backgroundColor = 'transparent';
+    }
+});
+
+
+
+
+// --- New Features Logic ---
+
+// Modal Logic
+const extensionModal = document.getElementById('extensionModal');
+
+function showExtensionModal() {
+    if (extensionModal) {
+        extensionModal.style.display = 'flex';
+        // Trigger reflow for transition
+        extensionModal.offsetHeight;
+        extensionModal.classList.add('active');
+        extensionModal.style.opacity = '1';
+    }
+}
+
+function closeModal() {
+    if (extensionModal) {
+        extensionModal.classList.remove('active');
+        extensionModal.style.opacity = '0';
+        setTimeout(() => {
+            extensionModal.style.display = 'none';
+        }, 300);
+    }
+}
+
+function redirectToDownload() {
+    closeModal();
+    const downloadSection = document.getElementById('download');
+    if (downloadSection) {
+        downloadSection.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+// Close modal when clicking outside
+if (extensionModal) {
+    extensionModal.addEventListener('click', (e) => {
+        if (e.target === extensionModal) {
+            closeModal();
+        }
+    });
+}
+
+// View All Rooms Logic
+const viewAllBtn = document.getElementById('viewAllBtn');
+
+if (viewAllBtn) {
+    viewAllBtn.addEventListener('click', () => {
+        const hiddenRooms = document.querySelectorAll('.hidden-room');
+        hiddenRooms.forEach(room => {
+            room.style.display = 'flex'; // Use flex to maintain card layout
+            room.classList.remove('hidden-room');
+        });
+        viewAllBtn.style.display = 'none'; // Hide button after expanding
+    });
+}
+// --- Auth Logic ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Select forms safely
+    const authForm = document.querySelector('.auth-card form');
+    const usernameInput = document.getElementById('username');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm-password');
+
+    // Identify Page Type
+    const isRegisterPage = !!(authForm && usernameInput && confirmPasswordInput);
+    const isLoginPage = !!(authForm && emailInput && passwordInput && !usernameInput);
+
+    // Handle Register
+    if (isRegisterPage) {
+        authForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = usernameInput.value;
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            const confirmPass = confirmPasswordInput.value;
+
+            if (password !== confirmPass) {
+                alert("Passwords do not match!");
+                return;
+            }
+
+            // Get existing users
+            const users = JSON.parse(localStorage.getItem('watch4party_users') || '[]');
+
+            // Check duplicate
+            if (users.find(u => u.email === email)) {
+                alert("User with this email already exists!");
+                return;
+            }
+
+            // Register new user
+            const newUser = { username, email, password };
+            users.push(newUser);
+            localStorage.setItem('watch4party_users', JSON.stringify(users));
+
+            // Auto-login
+            localStorage.setItem('watch4party_currentUser', JSON.stringify(newUser));
+
+            // Visual feedback
+            const btn = authForm.querySelector('button');
+            const originalText = btn.textContent;
+            btn.textContent = 'Success! Redirecting...';
+            btn.style.background = '#4CAF50';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                window.location.href = 'index.htm';
+            }, 1000);
+        });
+    }
+
+    // Handle Login
+    if (isLoginPage) {
+        authForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = emailInput.value;
+            const password = passwordInput.value;
+
+            const users = JSON.parse(localStorage.getItem('watch4party_users') || '[]');
+            const validUser = users.find(u => u.email === email && u.password === password);
+
+            if (validUser) {
+                // Success
+                localStorage.setItem('watch4party_currentUser', JSON.stringify(validUser));
+
+                const btn = authForm.querySelector('button');
+                btn.textContent = 'Logging In...';
+
+                setTimeout(() => {
+                    window.location.href = 'index.htm';
+                }, 800);
+            } else {
+                // Error
+                alert("Invalid email or password!");
+            }
+        });
+    }
+
+    // Check Auth State (Global)
+    checkAuthState();
+});
+
+function checkAuthState() {
+    const currentUser = JSON.parse(localStorage.getItem('watch4party_currentUser'));
+    const authBtn = document.querySelector('.navbar .desktop-only .btn-primary');
+
+    // Only run this on pages with the navbar login button (like index.html)
+    if (currentUser && authBtn && authBtn.textContent.trim() === 'Login') {
+        // Change "Login" button to User Profile / Logout
+        authBtn.textContent = currentUser.username;
+        authBtn.classList.remove('btn-primary');
+        authBtn.classList.add('btn-outline'); // Use outline style for logged in state
+        authBtn.title = "Click to Log Out";
+
+        // Change link functionality to Logout
+        authBtn.href = "#";
+        authBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm(`Log out as ${currentUser.username}?`)) {
+                localStorage.removeItem('watch4party_currentUser');
+                window.location.reload();
+            }
+        });
+    }
+}
+
